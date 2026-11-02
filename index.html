@@ -1,0 +1,591 @@
+# 大港藥局門市檯帳精確定位系統 (最小分類單面獨立拖曳版)
+
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>大港藥局門市檯帳位置智慧查詢系統</title>
+    <!-- 使用白名單內的 Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+        
+        /* 實用版靜態高對比亮燈樣式 */
+
+        .glow-active {
+            background-color: #EA580C !important;  /* 實心深橘 */
+            color: #FFFFFF !important;             /* 高對比純白字 */
+            border: 3px solid #7C2D12 !important;  /* 極深色外框線 */
+            font-weight: 900 !important;
+            opacity: 1 !important;
+            box-shadow: 0 4px 20px rgba(234, 88, 12, 0.7);
+        }
+        
+        /* 亮燈時內部文字與標籤同步轉為純白 */
+        .glow-active span,
+        .glow-active div,
+        .glow-active p,
+        .glow-active small {
+            color: #FFFFFF !important;
+        }
+
+        /* 沒選中的區域全面靜態淡化，讓目標瞬間跳出來 */
+        .dimmed-effect {
+
+            opacity: 0.05 !important;
+            background-color: #F8FAFC !important;
+            color: #94A3B8 !important;
+            border-color: #E2E8F0 !important;
+        }
+        .dimmed-effect span,
+        .dimmed-effect p,
+        .dimmed-effect small {
+            color: #94A3B8 !important;
+        }
+
+        /* 拖曳中的最小單元格樣式 */
+        .dragging {
+            opacity: 0.4 !important;
+            border: 2px dashed #EA580C !important;
+            background-color: #FFF7ED !important;
+        }
+    </style>
+</head>
+
+<body class="bg-slate-100 font-sans min-h-screen flex flex-col antialiased pb-12">
+
+    <!-- 頂部導航欄 -->
+    <header class="bg-[#E65100] text-white shadow-md sticky top-0 z-50">
+        <div class="max-w-md mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path>
+                </svg>
+                <div>
+                    <h1 class="text-base font-bold tracking-wider">大港藥局 檯帳精確定位</h1>
+                    <p class="text-[10px] opacity-95">🎯 前2碼官方類別對照 ╳ 最小分類單面獨立拖曳</p>
+                </div>
+            </div>
+            <span class="text-xs bg-orange-800 px-2.5 py-1 rounded-full font-bold">最新代碼版</span>
+        </div>
+    </header>
+
+    <!-- 主體內容 -->
+
+    <main class="flex-1 max-w-md w-full mx-auto px-4 pt-4 space-y-4">
+        
+        <!-- 核心查詢面板 -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-4">
+            <div class="text-sm text-gray-500 flex justify-between items-center">
+                <span>請輸入 6 碼檯帳（系統將自動依前2碼判定官方大類）</span>
+                <span class="text-xs text-orange-600 bg-orange-50 px-2 py-0.5 rounded font-medium">精密對接</span>
+            </div>
+            
+            <div class="relative flex items-center">
+                <input 
+                    id="code-input"
+                    type="number" 
+                    pattern="[0-9]*"
+                    inputmode="numeric"
+                    placeholder="手動輸入6碼檯帳..." 
+                    maxlength="6"
+                    oninput="if(value.length>6)value=value.slice(0,6); checkAutoSearch(this.value);"
+                    class="w-full text-3xl font-mono font-bold tracking-[0.25em] text-center pl-6 pr-12 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-[#E65100] focus:bg-white outline-none transition-all text-slate-800"
+
+                />
+                <button onclick="clearInput()" class="absolute right-3 text-gray-400 hover:text-gray-600 p-1">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- 照片分類一鍵快捷測試區 -->
+            <div class="space-y-2">
+                <div class="text-[11px] font-bold text-slate-400 tracking-wider">📋 背靠背面獨立亮燈測試（可任意單面拖曳改位）：</div>
+                <div class="grid grid-cols-2 gap-1.5 text-xs text-center">
+                    <button onclick="quickTest('010005')" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 py-1.5 rounded font-bold">🎯 點亮 01口服藥 (前側)</button>
+                    <button onclick="quickTest('030012')" class="bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 py-1.5 rounded font-bold">🎯 點亮 03醫材 (後側)</button>
+                    
+                    <button onclick="quickTest('220006')" class="bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 py-1.5 rounded font-bold">🎯 點亮 22沐浴 (前側)</button>
+                    <button onclick="quickTest('050021')" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 py-1.5 rounded font-bold">🎯 點亮 05飲料 (後側)</button>
+                    
+                    <button onclick="quickTest('080002')" class="bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 py-1.5 rounded font-bold">🎯 點亮 08居家便利 (後側)</button>
+
+                    <button onclick="quickTest('200001')" class="bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 py-1.5 rounded font-bold">🎯 點亮 20婦嬰用品 (前側)</button>
+                </div>
+                <div class="flex justify-between items-center pt-1 text-[11px]">
+                    <span class="text-orange-600 font-bold">💡 提示：支援拖曳手勢，前/後單面貨架格可分開換位！</span>
+                    <button onclick="resetLayout()" class="text-red-600 hover:text-red-700 font-bold underline">重置所有位置</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 定位解析結果卡片 -->
+        <div id="result-card" class="hidden">
+            <div class="bg-gradient-to-br from-slate-800 to-slate-900 text-white rounded-2xl p-4 shadow-md flex flex-col space-y-2">
+                <div class="flex justify-between items-center border-b border-slate-700/60 pb-1.5">
+                    <span class="text-xs font-bold text-orange-400">● 官方類別判定與面別鎖定</span>
+                    <span id="res-raw-code" class="font-mono text-xs font-bold bg-orange-600 text-white px-2 py-0.5 rounded">--</span>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-center text-xs">
+                    <div class="bg-slate-800 p-2 rounded border border-slate-700 col-span-2">
+                        <div class="text-slate-400 scale-90">解析官方商品大類 (前 2 碼)</div>
+
+                        <div id="res-category" class="font-black text-emerald-400 text-sm mt-0.5 tracking-wider">--</div>
+                    </div>
+                    <div class="bg-slate-800 p-2 rounded border border-slate-700 col-span-2">
+                        <div class="text-slate-400 scale-90">實體上下架指引方位與面別</div>
+                        <div id="res-zone" class="font-bold text-orange-300 text-xs mt-1">--</div>
+                    </div>
+                    <div class="bg-slate-800 p-2 rounded border border-slate-700 col-span-2">
+                        <div class="text-slate-400 scale-90">具體貨架層格高度 (後 2 碼)</div>
+                        <div id="res-layer" class="font-mono font-black text-white text-base mt-0.5">--</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 平面圖區塊 -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 space-y-3">
+            <div class="flex justify-between items-center text-xs border-b border-slate-100 pb-2">
+                <h3 class="font-bold text-slate-800 flex items-center space-x-1">
+                    <span>🗺️ 平面圖：細分最小單元格，各自橫向自由調換位置</span>
+
+                </h3>
+                <span class="text-slate-400 text-[10px]">前門在最下方</span>
+            </div>
+
+            <!-- 左右對稱配置的實體地圖空間容器 -->
+            <div id="blueprint-container" class="bg-white border border-slate-200 rounded-xl p-3 flex flex-col space-y-3 text-[10px] font-bold text-slate-700 select-none">
+                
+                <!-- 方向指標提示線 -->
+                <div class="grid grid-cols-12 gap-1 text-center text-[9px] text-slate-400 font-normal bg-slate-50 py-0.5 rounded">
+                    <div class="col-span-4">⬅️ 左側貨架動線</div>
+                    <div class="col-span-4">▼ 中央通道/中島群</div>
+                    <div class="col-span-4">右側貨架動線 ➡️</div>
+                </div>
+
+                <!-- ==================== 【區域 5：最深處（衛生棉特區）】 ==================== -->
+                <div class="border border-slate-200 rounded-xl p-2 bg-slate-50/40 space-y-1">
+                    <div class="grid grid-cols-12 gap-2 drag-zone" data-row="row5">
+                        <!-- 左側深處壁面 -->
+                        <div id="shelf-zone-25-left" draggable="true" class="col-span-4 bg-white border border-slate-300 rounded p-1.5 flex flex-col justify-between transition-all min-h-[58px] cursor-move">
+
+                            <span class="text-indigo-900 text-[9px] font-black">⬅️ 左牆壁面櫃</span>
+                            <p class="text-[8px] text-slate-700 font-bold">25 衛生棉特區<br>23 綿織百貨</p>
+                        </div>
+                        
+                        <!-- 中央通道尾端：獨立拖曳單元 -->
+                        <div class="col-span-4 flex flex-col space-y-1 bg-slate-100 p-1 rounded border border-slate-300">
+                            <div id="shelf-zone-08-back" draggable="true" class="bg-white border border-slate-200 p-1 text-center rounded transition-all cursor-move hover:border-orange-400">
+                                <div class="text-[7px] text-slate-600 font-medium">08 居家便利 (後)</div>
+                            </div>
+                            <div id="shelf-zone-20-front" draggable="true" class="bg-white border border-slate-200 p-1 text-center rounded transition-all cursor-move hover:border-orange-400">
+                                <div class="text-[7px] text-slate-700 font-bold">20 婦嬰用品 (前)</div>
+                            </div>
+                        </div>
+                        
+                        <!-- 右側深處後勤 (固定不參與拖曳) -->
+                        <div id="block-5-fixed" class="col-span-4 bg-slate-200/60 border border-slate-300 rounded p-1 flex flex-col justify-center items-center text-center text-slate-400 text-[8px]">
+                            <span class="font-bold text-slate-500">客用廁所</span>
+                            <span>機房 11.63P</span>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- ==================== 【區域 4：中後段】 ==================== -->
+                <div class="border border-slate-200 rounded-xl p-2 bg-slate-50/40 space-y-1">
+                    <div class="grid grid-cols-12 gap-2 drag-zone" data-row="row4">
+                        <!-- 左側島架最小單元拆分 -->
+                        <div class="col-span-4 flex flex-col space-y-1 bg-slate-100 p-1 rounded border border-slate-300">
+                            <div id="shelf-zone-21-back" draggable="true" class="bg-white border border-slate-200 p-1 text-center rounded transition-all cursor-move">
+                                <div class="text-[8px] text-slate-500">21 美髮類 (後)</div>
+                            </div>
+                            <div id="shelf-zone-07-front" draggable="true" class="bg-white border border-slate-200 p-1 text-center rounded transition-all cursor-move">
+                                <div class="text-[8px] text-slate-700 font-bold">07 口腔保健 (前)</div>
+                            </div>
+                        </div>
+                        <!-- 中央四聯大中島最小單元拆分 -->
+                        <div class="col-span-4 flex flex-col space-y-1 bg-slate-100 p-1 rounded border border-slate-300">
+                            <div id="shelf-zone-05-back" draggable="true" class="bg-white border border-slate-200 p-1 text-center rounded transition-all cursor-move">
+                                <div class="text-[8px] text-slate-500">05飲料/09輕纖 (後)</div>
+
+                            </div>
+                            <div id="shelf-zone-22-front" draggable="true" class="bg-white border border-slate-200 p-1 text-center rounded transition-all cursor-move">
+                                <div class="text-[8px] text-slate-700 font-bold">22 沐浴品類 (前)</div>
+                            </div>
+                        </div>
+                        <!-- 右側大壁櫃 -->
+                        <div id="shelf-zone-04-right" draggable="true" class="col-span-4 bg-white border border-slate-300 rounded p-1.5 flex flex-col justify-between transition-all min-h-[55px] cursor-move">
+                            <span class="text-emerald-900 text-[8px] block">右側大壁櫃 ➡️</span>
+                            <p class="text-[8px] text-slate-500 font-normal">04 保健 / 10 維他命</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ==================== 【區域 3：店中段】 ==================== -->
+                <div class="border border-slate-200 rounded-xl p-2 bg-slate-50/40 space-y-1">
+                    <div class="grid grid-cols-12 gap-2 drag-zone" data-row="row3">
+                        <!-- 左一島架最小單元拆分 -->
+                        <div class="col-span-4 flex flex-col space-y-1 bg-slate-100 p-1 rounded border border-slate-300">
+                            <div id="shelf-zone-03-back" draggable="true" class="bg-white border border-slate-200 p-1 text-center rounded transition-all cursor-move">
+
+                                <div class="text-[8px] text-slate-500">03 醫療器材 (後)</div>
+                            </div>
+                            <div id="shelf-zone-01-front" draggable="true" class="bg-white border border-slate-200 p-1 text-center rounded transition-all cursor-move">
+                                <div class="text-[8px] text-slate-700 font-bold">01口服/02外用 (前)</div>
+                            </div>
+                        </div>
+                        <!-- 中央中段島架最小單元拆分 -->
+                        <div class="col-span-4 flex flex-col space-y-1 bg-slate-100 p-1 rounded border border-slate-300">
+                            <div id="shelf-zone-56-back" draggable="true" class="bg-white border border-slate-200 p-1 text-center rounded transition-all cursor-move">
+                                <div class="text-[8px] text-slate-500">56 整合活動 (後)</div>
+                            </div>
+                            <div id="shelf-zone-06-front" draggable="true" class="bg-white border border-slate-200 p-1 text-center rounded transition-all cursor-move">
+                                <div class="text-[8px] text-slate-700 font-bold">06 休閒零食 (前)</div>
+                            </div>
+                        </div>
+                        <!-- 右側固定收銀台 -->
+                        <div id="block-3-fixed" class="col-span-4 bg-slate-100 border border-slate-300 rounded p-1 flex flex-col justify-center items-center text-center text-orange-700 text-[8px]">
+                            <span class="font-black">新收銀櫃台</span>
+                            <span class="scale-90 text-slate-400">藥局預包區</span>
+
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ==================== 【區域 2：護膚保養】 ==================== -->
+                <div class="border-2 border-orange-200 rounded-xl p-2 bg-orange-50/10 space-y-1">
+                    <div class="grid grid-cols-12 gap-2 drag-zone" data-row="row2">
+                        <div id="shelf-zone-33-left" draggable="true" class="col-span-4 bg-white border border-slate-300 rounded p-1.5 flex flex-col justify-center transition-all min-h-[55px] cursor-move text-center text-sky-900 text-[8px]">
+                            ⬅️ 左壁 33醫美/32身體
+                        </div>
+                        <div class="col-span-4 flex flex-col space-y-1 bg-slate-100 p-1 rounded border border-slate-300">
+                            <div id="shelf-zone-36-back" draggable="true" class="bg-white border border-slate-200 p-0.5 text-center rounded transition-all cursor-move">
+                                <div class="text-[7px] text-slate-500">36 面膜/97 試用 (後)</div>
+                            </div>
+                            <div id="shelf-zone-31-front" draggable="true" class="bg-white border border-slate-200 p-0.5 text-center rounded transition-all cursor-move">
+                                <div class="text-[7px] text-slate-700 font-bold">31 臉部保養 (前)</div>
+                            </div>
+                        </div>
+                        <div id="shelf-zone-33-right" draggable="true" class="col-span-4 bg-white border border-slate-300 rounded p-1.5 flex flex-col justify-center transition-all min-h-[55px] cursor-move text-center text-sky-900 text-[8px]">
+
+                            右壁 33醫美大牆 ➡️
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ==================== 【區域 1：大門口前線】 ==================== -->
+                <div class="border-2 border-orange-200 rounded-xl p-2 bg-orange-50/10 space-y-1">
+                    <div class="grid grid-cols-12 gap-2 drag-zone" data-row="row1">
+                        <div id="shelf-zone-34-left" draggable="true" class="col-span-4 bg-white border border-slate-300 rounded p-1.5 flex flex-col justify-center transition-all min-h-[55px] cursor-move text-center text-pink-900 text-[8px]">
+                            ⬅️ 左壁 34彩妝/26飾品
+                        </div>
+                        <div class="col-span-4 flex flex-col space-y-1 bg-slate-100 p-1 rounded border border-slate-300">
+                            <div id="shelf-zone-28-back" draggable="true" class="bg-white border border-slate-200 p-0.5 text-center rounded transition-all cursor-move">
+                                <div class="text-[7px] text-slate-500">28 LOHAS/29男 (後)</div>
+                            </div>
+                            <div id="shelf-zone-27-front" draggable="true" class="bg-white border border-slate-200 p-0.5 text-center rounded transition-all cursor-move">
+                                <div class="text-[7px] text-slate-700 font-bold">27 流行提案 (前)</div>
+                            </div>
+                        </div>
+
+                        <div id="shelf-zone-34-right" draggable="true" class="col-span-4 bg-white border border-slate-300 rounded p-1.5 flex flex-col justify-center transition-all min-h-[55px] cursor-move text-center text-pink-900 text-[8px]">
+                            右壁 34日系彩妝大牆 ➡️
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 底部：出入口大門邊界軸 -->
+                <div class="bg-amber-50 border border-amber-300 text-amber-800 p-2 rounded-xl text-center font-bold tracking-widest text-[11px] h-9 flex items-center justify-center">
+                    ▼ 門市正門進出口 (背對大門面向店內視角)
+                </div>
+
+            </div>
+        </div>
+        
+    </main>
+
+    <!-- Toast 訊息提示 -->
+    <div id="toast" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-slate-900 text-white text-xs px-4 py-2.5 rounded-xl shadow-lg opacity-0 transition-opacity duration-300 pointer-events-none z-50">
+        提示訊息
+
+    </div>
+
+    <script>
+        // 核心對照映射表
+        const cosmedCategories = {
+            1: "口服藥", 2: "外用藥", 3: "醫療器材", 4: "保健食品",
+            5: "飲料", 6: "休閒食品", 7: "口腔", 8: "居家便利品", 9: "輕纖食品",
+            10: "維他命", 20: "婦嬰用品", 21: "美髮", 22: "沐浴", 23: "綿織百貨",
+            25: "衛生棉", 26: "流行飾品", 27: "流行性商品", 28: "LOHAS", 29: "男性用品",
+            31: "臉部保養", 32: "身體保養", 33: "醫美", 34: "日系彩妝", 35: "歐美台系化妝品",
+            36: "開架面膜", 56: "整合活動商品", 97: "試用品"
+        };
+
+        const idToBlockMap = {
+            '1': 'shelf-zone-01-front', '2': 'shelf-zone-01-front', '3': 'shelf-zone-03-back',
+            '4': 'shelf-zone-04-right', '10': 'shelf-zone-04-right',
+            '5': 'shelf-zone-05-back', '9': 'shelf-zone-05-back', '22': 'shelf-zone-22-front',
+            '6': 'shelf-zone-06-front', '56': 'shelf-zone-56-back',
+            '7': 'shelf-zone-07-front', '21': 'shelf-zone-21-back',
+
+            '8': 'shelf-zone-08-back', '20': 'shelf-zone-20-front',
+            '23': 'shelf-zone-25-left', '25': 'shelf-zone-25-left',
+            '26': 'shelf-zone-34-left', '27': 'shelf-zone-27-front',
+            '28': 'shelf-zone-28-back', '29': 'shelf-zone-28-back',
+            '31': 'shelf-zone-31-front', '32': 'shelf-zone-33-left',
+            '36': 'shelf-zone-36-back', '97': 'shelf-zone-36-back'
+        };
+
+        function checkAutoSearch(val) {
+            if (val.length === 6) { locateTableAccount(val); }
+        }
+
+        function quickTest(code) {
+            document.getElementById('code-input').value = code;
+            locateTableAccount(code);
+        }
+
+        function locateTableAccount(code) {
+            const prefix2 = parseInt(code.substring(0, 2), 10);
+
+            const mid2 = parseInt(code.substring(2, 4), 10);
+            const layerNum = code.substring(4, 6);
+
+            let categoryName = cosmedCategories[prefix2] || "特殊活動代碼";
+            let targetHtmlId = null;
+
+            if (prefix2 === 33) {
+                targetHtmlId = (mid2 > 9 || mid2 === 23 || mid2 === 3) ? 'shelf-zone-33-right' : 'shelf-zone-33-left';
+            } else if (prefix2 === 34) {
+                targetHtmlId = (mid2 > 10 || mid2 === 17 || mid2 === 35) ? 'shelf-zone-34-right' : 'shelf-zone-34-left';
+            } else {
+                targetHtmlId = idToBlockMap[prefix2.toString()];
+            }
+
+            resetMapEffects();
+
+            if (!targetHtmlId) {
+                showToast("❌ 該前二碼未包含在目前貨架圖中");
+                return;
+
+            }
+
+            // 完全基於最小獨立 ID 進行高對比亮燈
+            document.querySelectorAll('[id^="shelf-zone-"]').forEach(el => {
+                if (el.id === targetHtmlId) {
+                    el.classList.add('glow-active');
+                } else {
+                    el.classList.add('dimmed-effect');
+                }
+            });
+
+            let detailedZoneText = "大港藥局獨立檯帳單元";
+            if (targetHtmlId.includes('front')) detailedZoneText += " (正面)";
+            if (targetHtmlId.includes('back')) detailedZoneText += " (背面)";
+
+            document.getElementById('res-raw-code').innerText = code;
+            document.getElementById('res-category').innerText = `類別 ${code.substring(0,2)}：${categoryName}`;
+            document.getElementById('res-zone').innerText = `精確目標：${detailedZoneText}`;
+            document.getElementById('res-layer').innerText = `第 ${parseInt(layerNum, 10)} 層格位 (由下往上算)`;
+
+            document.getElementById('result-card').classList.remove('hidden');
+
+            showToast(`🎯 精確單面定位已亮燈`);
+        }
+
+        function resetMapEffects() {
+            document.querySelectorAll('[id^="shelf-zone-"]').forEach(el => {
+                el.classList.remove('glow-active', 'dimmed-effect');
+            });
+        }
+
+        function clearInput() {
+            document.getElementById('code-input').value = '';
+            document.getElementById('result-card').classList.add('hidden');
+            resetMapEffects();
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+
+            toast.innerText = msg;
+            toast.classList.remove('opacity-0');
+            toast.classList.add('opacity-100');
+            setTimeout(() => {
+                toast.classList.remove('opacity-100');
+                toast.classList.add('opacity-0');
+            }, 1800);
+        }
+
+        // ==================== 最小分類單格獨立拖曳邏輯 ====================
+        let dragSrcEl = null;
+
+        function initDragAndDrop() {
+            const draggables = document.querySelectorAll('[draggable="true"]');
+            draggables.forEach(ev => {
+                ev.addEventListener('dragstart', handleDragStart, false);
+                ev.addEventListener('dragover', handleDragOver, false);
+                ev.addEventListener('drop', handleDrop, false);
+                ev.addEventListener('dragend', handleDragEnd, false);
+
+                
+                // 行動端手勢綁定
+                ev.addEventListener('touchstart', handleTouchStart, {passive: false});
+                ev.addEventListener('touchmove', handleTouchMove, {passive: false});
+                ev.addEventListener('touchend', handleTouchEnd, false);
+            });
+        }
+
+        function handleDragStart(e) {
+            this.classList.add('dragging');
+            dragSrcEl = this;
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', this.id);
+        }
+
+        function handleDragOver(e) {
+            if (e.preventDefault) { e.preventDefault(); }
+            return false;
+        }
+
+
+        function handleDrop(e) {
+            if (e.stopPropagation) { e.stopPropagation(); }
+            
+            const targetZone = this.closest('.drag-zone');
+            const srcZone = dragSrcEl.closest('.drag-zone');
+            
+            // 安全限制：只能在同一打橫排(Row)內互相換位
+            if (dragSrcEl !== this && targetZone && srcZone && targetZone.dataset.row === srcZone.dataset.row) {
+                const targetHtml = this.innerHTML;
+                const targetId = this.id;
+
+                this.innerHTML = dragSrcEl.innerHTML;
+                this.id = dragSrcEl.id;
+                
+                dragSrcEl.innerHTML = targetHtml;
+                dragSrcEl.id = targetId;
+                
+                saveCurrentLayout();
+                showToast("💾 單格子位置已更新並儲存");
+
+            }
+            return false;
+        }
+
+        function handleDragEnd() {
+            document.querySelectorAll('[draggable="true"]').forEach(el => el.classList.remove('dragging'));
+        }
+
+        // 觸控精密模擬
+        let touchStartEl = null;
+
+        function handleTouchStart(e) {
+            touchStartEl = this.closest('[draggable="true"]');
+            if (touchStartEl) touchStartEl.classList.add('dragging');
+        }
+
+        function handleTouchMove(e) {
+            if (touchStartEl) e.preventDefault(); 
+        }
+
+
+        function handleTouchEnd(e) {
+            if (!touchStartEl) return;
+            touchStartEl.classList.remove('dragging');
+            
+            const touch = e.changedTouches[0];
+            const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
+            
+            if (targetEl) {
+                const dropTarget = targetEl.closest('[draggable="true"]');
+                if (dropTarget && dropTarget !== touchStartEl) {
+                    const targetZone = dropTarget.closest('.drag-zone');
+                    const srcZone = touchStartEl.closest('.drag-zone');
+                    
+                    if (targetZone && srcZone && targetZone.dataset.row === srcZone.dataset.row) {
+                        const tempHtml = dropTarget.innerHTML;
+                        const tempId = dropTarget.id;
+
+                        dropTarget.innerHTML = touchStartEl.innerHTML;
+                        dropTarget.id = touchStartEl.id;
+
+
+                        touchStartEl.innerHTML = tempHtml;
+                        touchStartEl.id = tempId;
+
+                        saveCurrentLayout();
+                        showToast("💾 單格排列位置已記憶");
+                    }
+                }
+            }
+            touchStartEl = null;
+        }
+
+        function saveCurrentLayout() {
+            const rows = ['row1', 'row2', 'row3', 'row4', 'row5'];
+            const sequence = {};
+            rows.forEach(r => {
+                const zone = document.querySelector(`[data-row="${r}"]`);
+                if (zone) {
+                    const nodes = [];
+                    zone.querySelectorAll('[draggable="true"]').forEach(child => {
+
+                        nodes.push({ id: child.id, html: child.innerHTML });
+                    });
+                    sequence[r] = nodes;
+                }
+            });
+            localStorage.setItem('cosmed_micro_drag_2026', JSON.stringify(sequence));
+        }
+
+        function loadSavedLayout() {
+            const saved = localStorage.getItem('cosmed_micro_drag_2026');
+            if (saved) {
+                try {
+                    const sequence = JSON.parse(saved);
+                    Object.keys(sequence).forEach(r => {
+                        const zone = document.querySelector(`[data-row="${r}"]`);
+                        if (zone) {
+                            const childDraggables = zone.querySelectorAll('[draggable="true"]');
+                            sequence[r].forEach((data, index) => {
+                                if (childDraggables[index]) {
+
+                                    childDraggables[index].id = data.id;
+                                    childDraggables[index].innerHTML = data.html;
+                                }
+                            });
+                        }
+                    });
+                } catch(e) { console.error("歷史版面加載失敗", e); }
+            }
+        }
+
+        function resetLayout() {
+            localStorage.removeItem('cosmed_micro_drag_2026');
+            showToast("🔄 已重設為原始實體順序...");
+            setTimeout(() => { location.reload(); }, 800);
+        }
+
+        window.onload = function() {
+            loadSavedLayout();
+            initDragAndDrop();
+
+        };
+    </script>
+</body>
+</html>
+
+
